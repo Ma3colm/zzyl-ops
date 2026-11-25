@@ -1,0 +1,73 @@
+
+
+services:
+  # 1. MySQL 服务
+  zzyl-mysql:
+    image: mysql:8.0.37-debian
+    container_name: zzyl-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "your password"
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_HOST: '%'
+  #  ports:
+   #   - "3306:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    networks:
+      - zzyl-net
+
+  # 2. Redis 服务
+  zzyl-redis:
+    image: redis:7
+    container_name: zzyl-redis
+    restart: always
+#    ports:
+ #     - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+    command: redis-server --appendonly yes --requirepass "your password"
+    networks:
+      - zzyl-net
+
+  # 3. 后端 Java 服务
+  zzyl-backend:
+    image: openjdk:11
+    container_name: zzyl-backend
+    restart: no
+#    ports:
+ #     - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Asia/Shanghai
+    command: java -Djava.awt.headless=true -Dfile.encoding=UTF-8 -jar /app/zzyl-admin.jar
+    depends_on: 
+      - zzyl-mysql
+      - zzyl-redis
+    networks:
+      - zzyl-net
+
+  # 4. Nginx 前端服务
+  zzyl-nginx:
+    image: nginx:latest
+    container_name: zzyl-nginx
+    restart: always
+    ports:
+     - "80:80"
+    volumes:
+      - ./nginx/html:/usr/share/nginx/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - zzyl-backend
+    networks:
+      - zzyl-net
+
+networks:
+  zzyl-net:
+    driver: bridge
